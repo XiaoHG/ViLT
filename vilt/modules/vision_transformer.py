@@ -476,6 +476,7 @@ class VisionTransformer(nn.Module):
         self.patch_size = patch_size
         self.patch_dim = img_size // patch_size
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
         self.pos_drop = nn.Dropout(p=drop_rate)
 
@@ -505,6 +506,7 @@ class VisionTransformer(nn.Module):
 
         trunc_normal_(self.pos_embed, std=0.02)
         trunc_normal_(self.cls_token, std=0.02)
+        trunc_normal_(self.mask_token, std=0.02)
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -518,7 +520,7 @@ class VisionTransformer(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {"pos_embed", "cls_token"}
+        return {"pos_embed", "cls_token", "mask_token"}
 
     def mask_tokens(self, orig_image, feats):
         """
@@ -587,7 +589,7 @@ class VisionTransformer(nn.Module):
         patch_index = (
             torch.stack(
                 torch.meshgrid(
-                    torch.arange(x_mask.shape[-2]), torch.arange(x_mask.shape[-1])
+                    torch.arange(x_mask.shape[-2], device=x_mask.device), torch.arange(x_mask.shape[-1], device=x_mask.device)
                 ),
                 dim=-1,
             )[None, None, :, :, :]
@@ -742,7 +744,7 @@ class DistilledVisionTransformer(VisionTransformer):
         patch_index = (
             torch.stack(
                 torch.meshgrid(
-                    torch.arange(x_mask.shape[-2]), torch.arange(x_mask.shape[-1])
+                    torch.arange(x_mask.shape[-2], device=x_mask.device), torch.arange(x_mask.shape[-1], device=x_mask.device)
                 ),
                 dim=-1,
             )[None, None, :, :, :]

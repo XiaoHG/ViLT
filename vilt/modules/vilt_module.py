@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -31,7 +32,7 @@ class ViLTransformerSS(pl.LightningModule):
 
         if self.hparams.config["load_path"] == "":
             self.transformer = getattr(vit, self.hparams.config["vit"])(
-                pretrained=True, config=self.hparams.config
+                pretrained=False, config=self.hparams.config
             )
         else:
             self.transformer = getattr(vit, self.hparams.config["vit"])(
@@ -58,9 +59,13 @@ class ViLTransformerSS(pl.LightningModule):
             self.hparams.config["load_path"] != ""
             and not self.hparams.config["test_only"]
         ):
-            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
-            state_dict = ckpt["state_dict"]
-            self.load_state_dict(state_dict, strict=False)
+            try:
+                if os.path.exists(self.hparams.config["load_path"]):
+                    ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
+                    state_dict = ckpt["state_dict"]
+                    self.load_state_dict(state_dict, strict=False)
+            except Exception as e:
+                print(f"Warning: Failed to load checkpoint: {e}")
 
         hs = self.hparams.config["hidden_size"]
 
@@ -146,10 +151,10 @@ class ViLTransformerSS(pl.LightningModule):
             )
 
         text_embeds, image_embeds = (
-            text_embeds + self.token_type_embeddings(torch.zeros_like(text_masks)),
+            text_embeds + self.token_type_embeddings(torch.zeros_like(text_masks, dtype=torch.long)),
             image_embeds
             + self.token_type_embeddings(
-                torch.full_like(image_masks, image_token_type_idx)
+                torch.full_like(image_masks, image_token_type_idx, dtype=torch.long)
             ),
         )
 
